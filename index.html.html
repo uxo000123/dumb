@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>九宮格隱藏大獎</title>
+<style>
+:root{--bg:#101522;--panel:#1b2435;--panel2:#232f45;--text:#f4f6fb;--muted:#aab5c8;--accent:#8bd3ff;--accent2:#ffc857;--ok:#78e0b0;--danger:#ff8e9a;--border:#35445e}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#1d2a42,var(--bg) 60%);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+header{padding:24px 16px 10px;text-align:center}h1{margin:0;font-size:clamp(1.6rem,4vw,2.4rem)}header p{color:var(--muted);margin:8px 0 0}
+nav{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:12px}button,.button{border:1px solid var(--border);border-radius:12px;background:var(--panel2);color:var(--text);padding:10px 14px;font:inherit;cursor:pointer;transition:.15s}button:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}button:disabled{opacity:.42;cursor:not-allowed;transform:none}.primary{background:var(--accent);color:#101522;border-color:transparent;font-weight:750}.danger{border-color:#80414b;color:#ffdce0}.active-tab{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+main{width:min(1050px,calc(100% - 24px));margin:0 auto 40px}.panel{background:rgba(27,36,53,.94);border:1px solid var(--border);border-radius:20px;padding:clamp(14px,3vw,24px);margin:12px 0;box-shadow:0 12px 35px #0002}
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.muted{color:var(--muted)}.small{font-size:.88rem}.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:#2b3b52;color:#dce8fb;font-size:.85rem}.status{color:var(--ok)}.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:570px;margin:20px auto}.tile{aspect-ratio:1;border-radius:18px;border:1px solid #465a78;background:linear-gradient(145deg,#344760,#202d43);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;font-size:clamp(1.2rem,4vw,2rem);font-weight:800;min-width:0}.tile .emoji{font-size:clamp(1.5rem,5vw,2.7rem)}.tile.opened{background:linear-gradient(145deg,#344a5c,#253749);border-color:#59738a;font-size:1rem}.tile.hit{background:linear-gradient(145deg,#775b20,#3b321d);border-color:var(--accent2)}.tile .prize{font-size:clamp(.75rem,2.6vw,1rem);font-weight:650;text-align:center;padding:0 5px}.summary{background:#172337;border:1px solid var(--border);border-radius:14px;padding:14px;text-align:center}.summary strong{font-size:1.15rem}.result{min-height:60px;text-align:center;padding:8px 4px;font-size:1.05rem}.hidden{display:none!important}.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field label{color:var(--muted);font-size:.9rem}input,select{width:100%;background:#111a29;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit}input[type=checkbox]{width:auto}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--border);vertical-align:top}th{color:var(--muted);font-weight:650}h2{margin:0 0 14px;font-size:1.25rem}h3{margin:18px 0 8px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.prize-row{display:grid;grid-template-columns:1.2fr .7fr .7fr .8fr auto;gap:8px;align-items:end;padding:10px 0;border-bottom:1px solid var(--border)}.notice{border-left:3px solid var(--accent);padding:10px 12px;background:#18263a;border-radius:0 10px 10px 0;color:#d7e4f8}.warn{border-left-color:var(--accent2)}.footer{text-align:center;color:var(--muted);font-size:.8rem;padding:20px}
+@media(max-width:560px){.panel{border-radius:16px}.prize-row{grid-template-columns:1fr 1fr}.prize-row .field:first-child{grid-column:span 2}.board{gap:7px}.tile{border-radius:13px}th,td{padding:8px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎁 九宮格隱藏大獎</h1>
+  <p>單人遊玩・每格一次・大獎位置保密</p>
+</header>
+<nav>
+  <button class="tab active-tab" data-page="game">🎮 遊戲</button>
+  <button class="tab" data-page="admin">⚙️ 管理設定</button>
+  <button class="tab" data-page="history">📜 完整紀錄</button>
+</nav>
+<main>
+  <section id="page-game">
+    <div class="panel">
+      <div class="row">
+        <div><h2 id="round-title">準備開始</h2><div class="muted small" id="round-subtitle">開始新局後，選擇任一格抽獎。</div></div>
+        <span class="pill" id="game-status">尚未開始</span>
+      </div>
+      <div class="board" id="board" aria-label="九宮格"></div>
+      <div class="result" id="result" aria-live="polite">準備好就開始遊戲吧！</div>
+      <div class="row">
+        <span class="muted small" id="progress">已開啟 0 / 9 格</span>
+        <div class="actions" style="margin-top:0">
+          <button id="pause-btn" disabled>暫停</button>
+          <button class="primary" id="start-btn">開始新局</button>
+          <button id="next-btn" class="primary hidden">開始下一局</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>最近抽獎紀錄</h2>
+      <div id="recent-history" class="muted">目前沒有抽獎紀錄。</div>
+    </div>
+  </section>
+
+  <section id="page-admin" class="hidden">
+    <div class="panel">
+      <h2>遊戲設定</h2>
+      <div class="notice">設定變更只會套用到下一局；進行中的局數會沿用開始時的設定快照。</div>
+      <div class="grid2" style="margin-top:14px">
+        <div class="field"><label for="stay-rate">大獎留在原位機率（0–100%）</label><input id="stay-rate" type="number" min="0" max="100" step="1"></div>
+        <div class="field"><label for="fallback-name">備用安慰獎名稱</label><input id="fallback-name" maxlength="80"></div>
+      </div>
+      <h3>普通獎池</h3>
+      <div id="prize-editor"></div>
+      <div class="actions">
+        <button id="add-prize">＋ 新增獎品</button>
+        <button class="primary" id="save-settings">儲存設定</button>
+        <button id="reset-game" class="danger">手動重設目前遊戲</button>
+      </div>
+      <p class="muted small">有限量獎品的有效權重＝基礎權重 × 剩餘數量；無限量獎品的有效權重＝基礎權重。基礎權重為 0 的獎品不參與抽取。</p>
+    </div>
+    <div class="panel">
+      <h2>資料備份與匯入</h2>
+      <div class="actions">
+        <button class="primary" id="export-json">匯出完整 JSON 備份</button>
+        <button id="export-csv">匯出 CSV 詳細紀錄</button>
+        <label class="button" for="import-file">選擇 JSON 匯入檔</label><input id="import-file" type="file" accept=".json,application/json" class="hidden">
+      </div>
+      <div id="import-preview" class="hidden" style="margin-top:14px"></div>
+      <p class="muted small">JSON 備份不加密，可能包含未揭曉的大獎位置，請妥善保管。匯入前會先備份目前資料，並預覽後再決定是否整體替換。</p>
+      <div class="muted small" id="saved-at">最後儲存時間：尚無</div>
+    </div>
+  </section>
+
+  <section id="page-history" class="hidden">
+    <div class="panel">
+      <div class="row"><h2>完整抽獎紀錄</h2><button id="history-export">匯出 CSV</button></div>
+      <div id="full-history" class="muted">目前沒有抽獎紀錄。</div>
+    </div>
+  </section>
+</main>
+<div class="footer">單機 HTML 版本 · 資料儲存在目前瀏覽器 · 建議定期匯出備份</div>
+
+<script>
+(() => {
+'use strict';
+const STORAGE_KEY = 'hidden-grid-game-v1';
+const SCHEMA_VERSION = 1;
+const $ = id => document.getElementById(id);
+const defaultState = () => ({
+  schemaVersion: SCHEMA_VERSION,
+  settings: {
+    stayRate: 50,
+    fallbackName: '備用貼紙',
+    prizes: [
+      {id:'A', name:'小禮物', baseWeight:5, limited:true, initialQuantity:2, remaining:2},
+      {id:'B', name:'飲料券', baseWeight:3, limited:true, initialQuantity:3, remaining:3},
+      {id:'C', name:'安慰貼紙', baseWeight:2, limited:false, initialQuantity:null, remaining:null}
+    ]
+  },
+  roundCounter: 0,
+  currentRound: null,
+  history: [],
+  events: [],
+  lastSavedAt: null,
+  pauseRequested: false
+});
+let state = loadState();
+let importCandidate = null;
+let busy = false;
+
+function clone(x){ return JSON.parse(JSON.stringify(x)); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function now(){ return new Date().toISOString(); }
+function fmtTime(t){ if(!t) return '—'; const d=new Date(t); return isNaN(d)?String(t):d.toLocaleString('zh-TW',{hour12:false}); }
+function loadState(){
+  try {
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw) return defaultState();
+    const parsed=JSON.parse(raw);
+    return validateState(parsed);
+  } catch(e) {
+    console.warn('載入資料失敗，使用預設設定。',e);
+    return defaultState();
+  }
+}
+function validateState(data){
+  if(!data || data.schemaVersion!==SCHEMA_VERSION || !data.settings || !Array.isArray(data.settings.prizes) || !Array.isArray(data.events) || !Array.isArray(data.history)) throw new Error('資料格式不正確或版本不支援');
+  if(!Number.isFinite(Number(data.settings.stayRate)) || Number(data.settings.stayRate)<0 || Number(data.settings.stayRate)>100) throw new Error('大獎留在原位機率不正確');
+  const ids=new Set();
+  data.settings.prizes.forEach(p=>{
+    if(!p.id || ids.has(p.id)) throw new Error('獎品識別碼重複或缺失');
+    ids.add(p.id);
+    if(!p.name || !Number.isFinite(Number(p.baseWeight)) || Number(p.baseWeight)<0) throw new Error('獎品名稱或權重不正確');
+    if(p.limited && (!Number.isInteger(Number(p.remaining)) || Number(p.remaining)<0 || !Number.isInteger(Number(p.initialQuantity)) || Number(p.initialQuantity)<0)) throw new Error('有限量獎品庫存不正確');
+  });
+  if(data.currentRound){
+    const r=data.currentRound;
+    if(!Array.isArray(r.opened) || r.opened.length!==9 || !Array.isArray(r.results) || !Number.isInteger(r.jackpotPosition) || r.jackpotPosition<1 || r.jackpotPosition>9) throw new Error('未完成局資料不完整');
+  }
+  return data;
+}
+function save(){
+  state.lastSavedAt=now();
+  try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); }
+  catch(e){ alert('瀏覽器儲存失敗，請先匯出 JSON 備份。錯誤：'+e.message); }
+  $('saved-at').textContent='最後儲存時間：'+fmtTime(state.lastSavedAt);
+}
+function active(){ return !!state.currentRound && state.currentRound.status==='active'; }
+function paused(){ return !!state.currentRound && state.currentRound.status==='paused'; }
+function finished(){ return !!state.currentRound && state.currentRound.status==='finished'; }
+function currentConfig(){ return clone(state.settings); }
+function addEvent(type, round, details={}){
+  state.events.push({eventId:'E'+String(state.events.length+1).padStart(6,'0'), timestamp:now(), roundId:round?.id ?? '', type, ...clone(details)});
+}
+function effectivePrizePool(round){
+  return round.config.prizes.map(p=>{
+    const qty = p.limited ? Number(p.remaining) : null;
+    const effective = p.baseWeight * (p.limited ? Math.max(0,qty) : 1);
+    return {...p, effectiveWeight:effective};
+  }).filter(p => p.baseWeight>0 && (!p.limited || p.remaining>0) && p.effectiveWeight>0);
+}
+function weightedPick(items){
+  const total=items.reduce((sum,p)=>sum+p.effectiveWeight,0);
+  if(total<=0) return null;
+  let roll=Math.random()*total;
+  for(const p of items){ roll-=p.effectiveWeight; if(roll<0) return p; }
+  return items[items.length-1] || null;
+}
+function startRound(){
+  if(active() || paused()){ alert('目前仍有未完成局，請先完成或重設。'); return; }
+  state.roundCounter += 1;
+  const config=currentConfig();
+  state.currentRound={
+    id:'R'+String(state.roundCounter).padStart(4,'0'),
+    startedAt:now(), endedAt:null, status:'active',
+    config,
+    opened:Array(9).fill(false),
+    results:Array(9).fill(null),
+    jackpotPosition:Math.floor(Math.random()*9)+1,
+    jackpotFound:false,
+    clickCount:0,
+    inventoryStart:config.prizes.map(p=>({id:p.id,name:p.name,remaining:p.remaining}))
+  };
+  addEvent('round_started',state.currentRound,{configSnapshot:clone(config)});
+  save(); renderAll();
+}
+function refundRound(round, reason){
+  if(!round || round.refundApplied) return;
+  const refunded={};
+  for(const result of round.results){
+    if(result && result.prizeId && result.limited){
+      const current=state.settings.prizes.find(p=>p.id===result.prizeId);
+      if(current){ current.remaining += 1; refunded[current.id]=(refunded[current.id]||0)+1; }
+    }
+  }
+  round.refundApplied=true;
+  round.status='abandoned';
+  round.endedAt=now();
+  addEvent('round_abandoned',round,{reason,refunded});
+  const summary=roundSummary(round);
+  const existing=state.history.findIndex(x=>x.roundId===round.id);
+  if(existing>=0) state.history[existing]=summary; else state.history.push(summary);
+}
+function resetCurrent(){
+  if(state.currentRound && ['active','paused'].includes(state.currentRound.status)){
+    refundRound(state.currentRound,'manual_reset');
+  }
+  state.currentRound=null;
+  addEvent('manual_reset',null,{note:'保留歷史紀錄，重設目前遊戲狀態'});
+  save(); renderAll();
+}
+function abandonOnCloseChoice(resume){
+  const r=state.currentRound;
+  if(!r || !['active','paused'].includes(r.status)) return;
+  if(resume){
+    if(r.status==='paused') r.status='active';
+    save();
+  }else{
+    refundRound(r,'resume_prompt_abandon');
+    state.currentRound=null;
+    save();
+  }
+}
+function resumePrompt(){
+  const r=state.currentRound;
+  if(r && ['active','paused'].includes(r.status)){
+    const resume=confirm('發現未完成的 '+r.id+'。\n按「確定」繼續本局；按「取消」放棄本局並回補已抽取的有限量獎品。');
+    abandonOnCloseChoice(resume);
+  }
+}
+function drawCell(n){
+  const r=state.currentRound;
+  if(!r || r.status!=='active' || busy) return;
+  if(r.opened[n-1]) return;
+  busy=true;
+  // Synchronous atomic turn: pause cannot interrupt midway through a single click transaction.
+  const beforePos=r.jackpotPosition;
+  const beforeInventory=r.config.prizes.map(p=>({id:p.id,remaining:p.remaining}));
+  r.opened[n-1]=true;
+  r.clickCount++;
+  let result;
+  if(n===r.jackpotPosition){
+    r.jackpotFound=true;
+    result={cell:n,prizeId:'JACKPOT',prizeName:'隱藏大獎',isJackpot:true,limited:false,at:now()};
+  }else{
+    const pool=effectivePrizePool(r);
+    const chosen=weightedPick(pool);
+    if(chosen){
+      result={cell:n,prizeId:chosen.id,prizeName:chosen.name,isJackpot:false,limited:chosen.limited,at:now()};
+      if(chosen.limited){
+        const snap=r.config.prizes.find(p=>p.id===chosen.id);
+        snap.remaining-=1;
+        const global=state.settings.prizes.find(p=>p.id===chosen.id);
+        if(global) global.remaining=Math.max(0,global.remaining-1);
+      }
+    }else{
+      result={cell:n,prizeId:'FALLBACK',prizeName:r.config.fallbackName || '備用安慰獎',isJackpot:false,limited:false,at:now()};
+    }
+  }
+  r.results[n-1]=result;
+  let moved=false, postPos=r.jackpotPosition, movementOutcome='not_applicable';
+  if(!r.jackpotFound){
+    // After marking this cell opened, the jackpot must be in one of the remaining unopened cells.
+    const remaining=[1,2,3,4,5,6,7,8,9].filter(i=>!r.opened[i-1]);
+    if(remaining.length===0){
+      // Defensive invariant: if no jackpot was found, the round cannot silently settle.
+      r.status='error'; r.endedAt=now();
+      addEvent('invariant_error',r,{message:'九格全部開啟但未找到大獎',clickedCell:n});
+    } else if(Math.random()*100 < r.config.stayRate){
+      movementOutcome='stayed';
+    } else {
+      r.jackpotPosition=remaining[Math.floor(Math.random()*remaining.length)];
+      postPos=r.jackpotPosition; moved=true; movementOutcome='moved';
+    }
+  }
+  const inventoryAfter=r.config.prizes.map(p=>({id:p.id,remaining:p.remaining}));
+  addEvent('draw',r,{
+    cell:n, prizeId:result.prizeId, prizeName:result.prizeName,
+    isJackpot:result.isJackpot, jackpotPositionBefore:beforePos,
+    jackpotFound:r.jackpotFound, movementOutcome, jackpotMoved:moved,
+    jackpotPositionAfter:r.jackpotPosition,
+    inventoryBefore:beforeInventory, inventoryAfter,
+    weightsBefore:effectivePrizePoolForEvent(r, beforeInventory),
+    settingsSnapshotId:r.id
+  });
+  if(r.jackpotFound || r.clickCount===9){
+    // A valid round must finish only when jackpot is found. The invariant means last unopened cell is the jackpot.
+    if(r.jackpotFound){
+      r.status='finished'; r.endedAt=now();
+      addEvent('round_finished',r,{jackpotFound:true,drawCount:r.clickCount});
+    }else{
+      r.status='error'; r.endedAt=now();
+      addEvent('invariant_error',r,{message:'九格全部開啟但未找到大獎'});
+    }
+  }
+  save(); busy=false; renderAll();
+}
+function effectivePrizePoolForEvent(round, inventoryBefore){
+  return round.config.prizes.map(p=>{
+    const before=inventoryBefore.find(x=>x.id===p.id);
+    const qty=p.limited?(before?before.remaining:0):null;
+    return {id:p.id,name:p.name,baseWeight:p.baseWeight,effectiveWeight:p.baseWeight*(p.limited?Math.max(0,qty):1),remainingBefore:qty};
+  });
+}
+function pauseResume(){
+  const r=state.currentRound;
+  if(!r) return;
+  if(r.status==='active'){
+    r.status='paused'; addEvent('paused',r,{note:'立即禁止新的操作'});
+  }else if(r.status==='paused'){
+    r.status='active'; addEvent('resumed',r,{note:'恢復原局'});
+  }
+  save(); renderAll();
+}
+function nextRound(){
+  if(!finished()) return;
+  // renderAll/syncHistorySummary already records the finished round; update by ID to avoid duplicates.
+  const summary=roundSummary(state.currentRound);
+  const existing=state.history.findIndex(x=>x.roundId===summary.roundId);
+  if(existing>=0) state.history[existing]=summary; else state.history.push(summary);
+  state.currentRound=null;
+  save(); startRound();
+}
+function roundSummary(r){
+  return {roundId:r.id,startedAt:r.startedAt,endedAt:r.endedAt,status:r.status,jackpotFound:r.jackpotFound,drawCount:r.clickCount,results:clone(r.results),configSnapshot:clone(r.config),refundApplied:!!r.refundApplied};
+}
+function syncHistorySummary(){
+  // Update summary for current round status if it has been closed or abandoned.
+  const r=state.currentRound;
+  if(r && ['finished','abandoned','error'].includes(r.status)){
+    const ix=state.history.findIndex(x=>x.roundId===r.id);
+    const s=roundSummary(r);
+    if(ix>=0) state.history[ix]=s;
+    else state.history.push(s);
+  }
+}
+function renderBoard(){
+  const board=$('board'); board.innerHTML='';
+  const r=state.currentRound;
+  for(let n=1;n<=9;n++){
+    const opened=!!r?.opened[n-1];
+    const result=r?.results[n-1];
+    const b=document.createElement('button');
+    b.className='tile'+(opened?' opened':'')+(result?.isJackpot?' hit':'');
+    b.disabled=!active() || opened;
+    b.setAttribute('aria-label',opened?`第${n}格，${result?.prizeName||'已開啟'}`:`開啟第${n}格`);
+    if(opened){
+      const emoji=result?.isJackpot?'🏆':result?.prizeId==='A'?'🎁':result?.prizeId==='B'?'🥤':result?.prizeId==='C'?'✨':'🎀';
+      b.innerHTML=`<span class="emoji">${emoji}</span><span class="prize">${esc(result?.prizeName||'已開啟')}</span>`;
+    }else{
+      b.innerHTML=`<span class="emoji">🎁</span><span>${n}</span>`;
+    }
+    b.addEventListener('click',()=>drawCell(n));
+    board.appendChild(b);
+  }
+}
+function renderRecent(){
+  const events=state.events.filter(e=>e.type==='draw').slice(-5).reverse();
+  $('recent-history').innerHTML=events.length?`<div class="table-wrap"><table><thead><tr><th>局號</th><th>格子</th><th>結果</th><th>時間</th></tr></thead><tbody>${events.map(e=>`<tr><td>${esc(e.roundId)}</td><td>${esc(e.cell)}</td><td>${esc(e.prizeName)}</td><td>${esc(fmtTime(e.timestamp))}</td></tr>`).join('')}</tbody></table></div>`:'目前沒有抽獎紀錄。';
+}
+function renderFullHistory(){
+  const events=[...state.events].reverse();
+  $('full-history').innerHTML=events.length?`<div class="table-wrap"><table><thead><tr><th>事件</th><th>時間</th><th>局號</th><th>內容</th></tr></thead><tbody>${events.map(e=>{
+    let desc='';
+    if(e.type==='draw') desc=`第 ${e.cell} 格：${e.prizeName}${e.isJackpot?'（大獎）':''}`;
+    else if(e.type==='round_started') desc='開始新局';
+    else if(e.type==='round_finished') desc='本局正常結束';
+    else if(e.type==='round_abandoned') desc='放棄本局；回補：'+Object.entries(e.refunded||{}).map(([id,n])=>id+' × '+n).join('、');
+    else if(e.type==='paused') desc='遊戲暫停';
+    else if(e.type==='resumed') desc='遊戲恢復';
+    else if(e.type==='manual_reset') desc='手動重設';
+    else if(e.type==='invariant_error') desc=e.message;
+    else desc=e.type;
+    return `<tr><td>${esc(e.eventId)}</td><td>${esc(fmtTime(e.timestamp))}</td><td>${esc(e.roundId||'—')}</td><td>${esc(desc)}</td></tr>`;
+  }).join('')}</tbody></table></div>`:'目前沒有抽獎紀錄。';
+}
+function renderStatus(){
+  const r=state.currentRound;
+  if(!r){
+    $('round-title').textContent='準備開始';
+    $('round-subtitle').textContent='開始新局後，選擇任一格抽獎。';
+    $('game-status').textContent='尚未開始';
+    $('progress').textContent='已開啟 0 / 9 格';
+    $('result').textContent='準備好就開始遊戲吧！';
+    $('start-btn').classList.remove('hidden'); $('next-btn').classList.add('hidden');
+    $('pause-btn').disabled=true; $('pause-btn').textContent='暫停';
+    return;
+  }
+  $('round-title').textContent=r.id;
+  $('round-subtitle').textContent=r.status==='finished'?'本局已結束，查看結算摘要後開始下一局。':r.status==='paused'?'遊戲已暫停，恢復後可繼續。':r.status==='abandoned'?'本局已放棄。':r.status==='error'?'本局發生規則錯誤，請檢查資料。':'選擇一格，看看會得到什麼！';
+  $('game-status').textContent=({active:'進行中',paused:'已暫停',finished:'已結束',abandoned:'已放棄',error:'錯誤'})[r.status]||r.status;
+  $('progress').textContent=`已開啟 ${r.clickCount} / 9 格`;
+  $('pause-btn').disabled=!(active()||paused());
+  $('pause-btn').textContent=paused()?'恢復遊戲':'暫停';
+  $('start-btn').classList.toggle('hidden',!!r && ['active','paused','finished'].includes(r.status));
+  $('next-btn').classList.toggle('hidden',!finished());
+  if(r.status==='finished'){
+    const prizes=r.results.filter(Boolean).map(x=>x.prizeName);
+    $('result').innerHTML=`<div class="summary"><strong>🎉 本局結束！</strong><div style="margin-top:6px">你找到了隱藏大獎！共開啟 ${r.clickCount} 格。</div><div class="muted small" style="margin-top:6px">獎品：${prizes.map(esc).join('、')}</div></div>`;
+  }else if(r.status==='paused'){
+    $('result').textContent='遊戲已暫停。按「恢復遊戲」繼續。';
+  }else if(r.status==='error'){
+    $('result').textContent='發現不符合規則的狀態。為避免錯誤結算，請匯出備份並重設或恢復有效備份。';
+  }else if(r.status==='abandoned'){
+    $('result').textContent='本局已放棄，有限量獎品已回補。';
+  }else if(r.clickCount===0){
+    $('result').textContent='選擇任一格，看看會得到什麼！';
+  }else{
+    const last=r.results.filter(Boolean).slice(-1)[0];
+    $('result').textContent=last?(last.isJackpot?'🏆 恭喜找到隱藏大獎！':`🎁 獲得：${last.prizeName}`):'選擇任一格開始抽獎。';
+  }
+}
+function renderPrizeEditor(){
+  $('prize-editor').innerHTML='';
+  state.settings.prizes.forEach((p,index)=>{
+    const row=document.createElement('div'); row.className='prize-row';
+    row.innerHTML=`
+      <div class="field"><label>獎品名稱</label><input data-k="name" data-i="${index}" value="${esc(p.name)}" maxlength="80"></div>
+      <div class="field"><label>基礎權重</label><input data-k="baseWeight" data-i="${index}" type="number" min="0" step="any" value="${p.baseWeight}"></div>
+      <div class="field"><label>有限量數量</label><input data-k="initialQuantity" data-i="${index}" type="number" min="0" step="1" value="${p.limited?p.initialQuantity:''}" ${p.limited?'':'disabled'}></div>
+      <div class="field"><label>庫存類型</label><select data-k="limited" data-i="${index}"><option value="true" ${p.limited?'selected':''}>有限量</option><option value="false" ${!p.limited?'selected':''}>無限量</option></select></div>
+      <button class="danger" data-remove="${index}" title="刪除獎品">刪除</button>`;
+    $('prize-editor').appendChild(row);
+  });
+  $('prize-editor').querySelectorAll('[data-k]').forEach(el=>{
+    el.addEventListener('change',()=>{
+      const i=Number(el.dataset.i), key=el.dataset.k, p=state.settings.prizes[i];
+      if(key==='limited'){
+        const limited=el.value==='true';
+        p.limited=limited;
+        if(limited){p.initialQuantity=Number(p.initialQuantity??1);p.remaining=Math.min(Number(p.remaining??p.initialQuantity),p.initialQuantity);}
+        else {p.initialQuantity=null;p.remaining=null;}
+        renderPrizeEditor();
+      }else if(key==='baseWeight'){
+        const v=Number(el.value); if(!Number.isFinite(v)||v<0){alert('權重必須是大於或等於 0 的數字。');el.value=p.baseWeight;return;} p.baseWeight=v;
+      }else if(key==='initialQuantity'){
+        const v=Number(el.value); if(!Number.isInteger(v)||v<0){alert('數量必須是大於或等於 0 的整數。');el.value=p.initialQuantity;return;}
+        const oldInitial=p.initialQuantity??0, oldRemaining=p.remaining??0;
+        p.initialQuantity=v; p.remaining=Math.max(0,v-(oldInitial-oldRemaining));
+      }else p.name=el.value.trim()||p.name;
+    });
+  });
+  $('prize-editor').querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(state.settings.prizes.length<=1){alert('至少保留一個普通獎品設定。');return;}
+    if(!confirm('確定刪除此獎品設定？現有歷史紀錄不會刪除。')) return;
+    state.settings.prizes.splice(Number(btn.dataset.remove),1); renderPrizeEditor();
+  }));
+}
+function renderAll(){
+  syncHistorySummary();
+  renderBoard(); renderStatus(); renderRecent(); renderFullHistory(); renderPrizeEditor();
+  $('stay-rate').value=state.settings.stayRate;
+  $('fallback-name').value=state.settings.fallbackName;
+  $('saved-at').textContent='最後儲存時間：'+fmtTime(state.lastSavedAt);
+}
+function saveSettings(){
+  const rate=Number($('stay-rate').value);
+  if(!Number.isFinite(rate)||rate<0||rate>100){alert('留在原位機率必須介於 0 到 100。');return;}
+  const fallback=$('fallback-name').value.trim();
+  if(!fallback){alert('請設定備用安慰獎名稱。');return;}
+  const names=new Set();
+  for(const p of state.settings.prizes){
+    if(!p.name.trim()){alert('獎品名稱不可空白。');return;}
+    if(names.has(p.name.trim())){alert('普通獎品名稱不可重複。');return;}
+    names.add(p.name.trim());
+    if(!Number.isFinite(p.baseWeight)||p.baseWeight<0){alert('權重不可小於 0。');return;}
+  }
+  state.settings.stayRate=rate;
+  state.settings.fallbackName=fallback;
+  addEvent('settings_updated',null,{settingsSnapshot:clone(state.settings)});
+  save(); renderAll(); alert('設定已儲存，將套用於下一局。');
+}
+function download(filename, content, type){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportJSON(){
+  syncHistorySummary();
+  const payload={...clone(state),exportedAt:now(),app:'九宮格隱藏大獎',schemaVersion:SCHEMA_VERSION};
+  download(`九宮格完整備份_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(payload,null,2),'application/json;charset=utf-8');
+}
+function csvCell(v){ const s=String(v??''); return '"'+s.replace(/"/g,'""')+'"'; }
+function exportCSV(){
+  const headers=['eventId','timestamp','roundId','type','cell','prizeId','prizeName','isJackpot','jackpotPositionBefore','jackpotPositionAfter','movementOutcome','inventoryBefore','inventoryAfter','refunded','reason','message'];
+  const rows=[headers.join(',')];
+  state.events.forEach(e=>{
+    rows.push(headers.map(h=>{
+      let v=e[h];
+      if(v===undefined && (h==='inventoryBefore'||h==='inventoryAfter')) v='';
+      if(v && typeof v==='object') v=JSON.stringify(v);
+      return csvCell(v);
+    }).join(','));
+  });
+  download(`九宮格抽獎紀錄_${new Date().toISOString().slice(0,10)}.csv`,'\uFEFF'+rows.join('\r\n'),'text/csv;charset=utf-8');
+}
+function previewImport(file){
+  const preview=$('import-preview');
+  if(!file){preview.classList.add('hidden');return;}
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const candidate=validateState(JSON.parse(reader.result));
+      importCandidate=candidate;
+      const openCount=candidate.currentRound?.opened?.filter(Boolean).length||0;
+      preview.innerHTML=`<div class="notice"><strong>檔案預覽</strong><br>設定獎品：${candidate.settings.prizes.length} 項<br>抽獎事件：${candidate.events.length} 筆<br>歷史局數：${candidate.history.length} 局<br>未完成局：${candidate.currentRound && ['active','paused'].includes(candidate.currentRound.status)?esc(candidate.currentRound.id)+'（已開啟 '+openCount+'/9 格）':'無'}<br>備份時間：${esc(fmtTime(candidate.lastSavedAt))}</div><div class="actions"><button class="primary" id="confirm-import">確認匯入並整體替換</button><button id="cancel-import">取消</button></div>`;
+      preview.classList.remove('hidden');
+      $('confirm-import').addEventListener('click',()=>{
+        if(!importCandidate)return;
+        try{
+          const backup={...clone(state),backupCreatedAt:now(),backupReason:'import_before_replace'};
+          download(`匯入前自動備份_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(backup,null,2),'application/json;charset=utf-8');
+          state=clone(importCandidate); importCandidate=null;
+          save(); renderAll(); preview.classList.add('hidden'); $('import-file').value='';
+          alert('匯入完成。');
+        }catch(e){alert('匯入失敗，原資料未套用：'+e.message);}
+      });
+      $('cancel-import').addEventListener('click',()=>{importCandidate=null;preview.classList.add('hidden');$('import-file').value='';});
+    }catch(e){
+      importCandidate=null;
+      preview.innerHTML=`<div class="notice warn">無法匯入：${esc(e.message)}。目前資料未變更。</div>`;
+      preview.classList.remove('hidden');
+    }
+  };
+  reader.onerror=()=>{preview.innerHTML='<div class="notice warn">讀取檔案失敗。</div>';preview.classList.remove('hidden');};
+  reader.readAsText(file);
+}
+function showPage(page){
+  ['game','admin','history'].forEach(p=>$('page-'+p).classList.toggle('hidden',p!==page));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active-tab',b.dataset.page===page));
+}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+$('start-btn').addEventListener('click',startRound);
+$('next-btn').addEventListener('click',nextRound);
+$('pause-btn').addEventListener('click',pauseResume);
+$('save-settings').addEventListener('click',saveSettings);
+$('add-prize').addEventListener('click',()=>{
+  const id='P'+Math.random().toString(36).slice(2,8).toUpperCase();
+  state.settings.prizes.push({id,name:'新獎品',baseWeight:1,limited:true,initialQuantity:1,remaining:1});
+  renderPrizeEditor();
+});
+$('reset-game').addEventListener('click',()=>{
+  if(!confirm('確定重設目前遊戲？若有未完成局，系統會自動放棄並回補本局已抽取的有限量獎品。歷史紀錄會保留。'))return;
+  resetCurrent();
+});
+$('export-json').addEventListener('click',exportJSON);
+$('export-csv').addEventListener('click',exportCSV);
+$('history-export').addEventListener('click',exportCSV);
+$('import-file').addEventListener('change',e=>previewImport(e.target.files?.[0]));
+window.addEventListener('beforeunload',()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch(e){}});
+resumePrompt();
+renderAll();
+})();
+</script>
+</body>
+</html>
